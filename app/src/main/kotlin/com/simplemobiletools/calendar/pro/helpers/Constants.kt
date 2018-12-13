@@ -16,6 +16,7 @@ const val WEEK_START_DATE_TIME = "week_start_date_time"
 const val CALDAV = "Caldav"
 const val VIEW_TO_OPEN = "view_to_open"
 const val REGULAR_EVENT_TYPE_ID = 1L
+const val CHOPPED_LIST_DEFAULT_SIZE = 100
 
 const val MONTHLY_VIEW = 1
 const val YEARLY_VIEW = 2
@@ -103,6 +104,8 @@ const val BYDAY = "BYDAY"
 const val BYMONTHDAY = "BYMONTHDAY"
 const val BYMONTH = "BYMONTH"
 const val LOCATION = "LOCATION"
+const val RECURRENCE_ID = "RECURRENCE-ID"
+const val SEQUENCE = "SEQUENCE"
 
 // this tag isn't a standard ICS tag, but there's no official way of adding a category color in an ics file
 const val CATEGORY_COLOR = "CATEGORY_COLOR:"

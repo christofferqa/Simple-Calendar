@@ -4,12 +4,10 @@ import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.database.ContentObserver
 import android.database.Cursor
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
 import android.provider.ContactsContract
 import android.view.Menu
 import android.view.MenuItem
@@ -140,7 +138,6 @@ class MainActivity : SimpleActivity(), RefreshRecyclerViewListener {
 
     override fun onStop() {
         super.onStop()
-        contentResolver.unregisterContentObserver(calDAVSyncObserver)
         closeSearch()
     }
 
@@ -273,11 +270,11 @@ class MainActivity : SimpleActivity(), RefreshRecyclerViewListener {
             return true
         }
 
-        val eventIdToOpen = intent.getLongExtra(EVENT_ID, 0)
-        val eventOccurrenceToOpen = intent.getIntExtra(EVENT_OCCURRENCE_TS, 0)
+        val eventIdToOpen = intent.getLongExtra(EVENT_ID, 0L)
+        val eventOccurrenceToOpen = intent.getLongExtra(EVENT_OCCURRENCE_TS, 0L)
         intent.removeExtra(EVENT_ID)
         intent.removeExtra(EVENT_OCCURRENCE_TS)
-        if (eventIdToOpen != 0L && eventOccurrenceToOpen != 0) {
+        if (eventIdToOpen != 0L && eventOccurrenceToOpen != 0L) {
             Intent(this, EventActivity::class.java).apply {
                 putExtra(EVENT_ID, eventIdToOpen)
                 putExtra(EVENT_OCCURRENCE_TS, eventOccurrenceToOpen)
@@ -367,29 +364,20 @@ class MainActivity : SimpleActivity(), RefreshRecyclerViewListener {
             toast(R.string.refreshing)
         }
 
-        syncCalDAVCalendars(this, calDAVSyncObserver)
-        scheduleCalDAVSync(true)
-    }
-
-    private val calDAVSyncObserver = object : ContentObserver(Handler()) {
-        override fun onChange(selfChange: Boolean) {
-            super.onChange(selfChange)
-            if (!selfChange) {
+        syncCalDAVCalendars {
+            calDAVHelper.refreshCalendars(true) {
                 calDAVChanged()
             }
         }
     }
 
     private fun calDAVChanged() {
-        contentResolver.unregisterContentObserver(calDAVSyncObserver)
-        recheckCalDAVCalendars {
-            refreshViewPager()
-            if (showCalDAVRefreshToast) {
-                toast(R.string.refreshing_complete)
-            }
-            runOnUiThread {
-                swipe_refresh_layout.isRefreshing = false
-            }
+        refreshViewPager()
+        if (showCalDAVRefreshToast) {
+            toast(R.string.refreshing_complete)
+        }
+        runOnUiThread {
+            swipe_refresh_layout.isRefreshing = false
         }
     }
 
@@ -502,7 +490,7 @@ class MainActivity : SimpleActivity(), RefreshRecyclerViewListener {
                                     eventType = eventTypeId, source = source, lastUpdated = lastUpdated)
 
                             if (!importIDs.contains(contactId)) {
-                                eventsHelper.insertEvent(null, event, false) {
+                                eventsHelper.insertEvent(event, false, false) {
                                     eventsAdded++
                                 }
                             }

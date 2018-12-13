@@ -353,10 +353,16 @@ class WeekFragment : Fragment(), WeeklyCalendar {
 
             val minTS = Math.max(startDateTime.seconds(), mWeekTimestamp)
             val maxTS = Math.min(endDateTime.seconds(), mWeekTimestamp + WEEK_SECONDS)
-            val daysCnt = Days.daysBetween(Formatter.getDateTimeFromTS(minTS).toLocalDate(), Formatter.getDateTimeFromTS(maxTS).toLocalDate()).days
 
+            // fix a visual glitch with all-day events or events lasting multiple days starting at midnight on monday, being shown the previous week too
+            if (minTS == maxTS && (minTS - mWeekTimestamp == WEEK_SECONDS.toLong())) {
+                return
+            }
+
+            val daysCnt = Days.daysBetween(Formatter.getDateTimeFromTS(minTS).toLocalDate(), Formatter.getDateTimeFromTS(maxTS).toLocalDate()).days
             val startDateTimeInWeek = Formatter.getDateTimeFromTS(minTS)
             val firstDayIndex = (startDateTimeInWeek.dayOfWeek - if (mConfig.isSundayFirst) 0 else 1) % 7
+
             var doesEventFit: Boolean
             val cnt = allDayRows.size - 1
             var wasEventHandled = false

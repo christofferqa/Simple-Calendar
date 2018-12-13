@@ -178,23 +178,34 @@ class EventActivity : SimpleActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putLong(START_TS, mEventStartDateTime.seconds())
-        outState.putLong(END_TS, mEventEndDateTime.seconds())
+        if (!wasActivityInitialized) {
+            return
+        }
 
-        outState.putInt(REMINDER_1_MINUTES, mReminder1Minutes)
-        outState.putInt(REMINDER_2_MINUTES, mReminder2Minutes)
-        outState.putInt(REMINDER_3_MINUTES, mReminder3Minutes)
+        outState.apply {
+            putLong(START_TS, mEventStartDateTime.seconds())
+            putLong(END_TS, mEventEndDateTime.seconds())
 
-        outState.putInt(REPEAT_INTERVAL, mRepeatInterval)
-        outState.putInt(REPEAT_RULE, mRepeatRule)
-        outState.putLong(REPEAT_LIMIT, mRepeatLimit)
+            putInt(REMINDER_1_MINUTES, mReminder1Minutes)
+            putInt(REMINDER_2_MINUTES, mReminder2Minutes)
+            putInt(REMINDER_3_MINUTES, mReminder3Minutes)
 
-        outState.putLong(EVENT_TYPE_ID, mEventTypeId)
-        outState.putInt(EVENT_CALENDAR_ID, mEventCalendarId)
+            putInt(REPEAT_INTERVAL, mRepeatInterval)
+            putInt(REPEAT_RULE, mRepeatRule)
+            putLong(REPEAT_LIMIT, mRepeatLimit)
+
+            putLong(EVENT_TYPE_ID, mEventTypeId)
+            putInt(EVENT_CALENDAR_ID, mEventCalendarId)
+        }
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
+        if (!savedInstanceState.containsKey(START_TS)) {
+            finish()
+            return
+        }
+
         savedInstanceState.apply {
             mEventStartDateTime = Formatter.getDateTimeFromTS(getLong(START_TS))
             mEventEndDateTime = Formatter.getDateTimeFromTS(getLong(END_TS))
@@ -544,19 +555,14 @@ class EventActivity : SimpleActivity() {
 
     private fun updateReminder1Text() {
         event_reminder_1.text = getFormattedMinutes(mReminder1Minutes)
-        if (mReminder1Minutes == REMINDER_OFF) {
-            mReminder2Minutes = REMINDER_OFF
-            mReminder3Minutes = REMINDER_OFF
-        }
     }
 
     private fun updateReminder2Text() {
         event_reminder_2.apply {
-            beGoneIf(mReminder1Minutes == REMINDER_OFF)
+            beGoneIf(event_reminder_2.isGone() && mReminder1Minutes == REMINDER_OFF)
             if (mReminder2Minutes == REMINDER_OFF) {
                 text = resources.getString(R.string.add_another_reminder)
                 alpha = 0.4f
-                mReminder3Minutes = REMINDER_OFF
             } else {
                 text = getFormattedMinutes(mReminder2Minutes)
                 alpha = 1f
@@ -566,7 +572,7 @@ class EventActivity : SimpleActivity() {
 
     private fun updateReminder3Text() {
         event_reminder_3.apply {
-            beGoneIf(mReminder2Minutes == REMINDER_OFF || mReminder1Minutes == REMINDER_OFF)
+            beGoneIf(event_reminder_3.isGone() && (mReminder2Minutes == REMINDER_OFF || mReminder1Minutes == REMINDER_OFF))
             if (mReminder3Minutes == REMINDER_OFF) {
                 text = resources.getString(R.string.add_another_reminder)
                 alpha = 0.4f
@@ -599,7 +605,7 @@ class EventActivity : SimpleActivity() {
             event_caldav_calendar_holder.beVisible()
             event_caldav_calendar_divider.beVisible()
 
-            val calendars = calDAVHelper.getCalDAVCalendars(this).filter {
+            val calendars = calDAVHelper.getCalDAVCalendars("", true).filter {
                 config.getSyncedCalendarIdsAsList().contains(it.id)
             }
             updateCurrentCalendarInfo(if (mEventCalendarId == STORED_LOCALLY_ONLY) null else getCalendarWithId(calendars, getCalendarId()))
@@ -732,7 +738,7 @@ class EventActivity : SimpleActivity() {
         val newEventType = if (!config.caldavSync || config.lastUsedCaldavCalendarId == 0 || mEventCalendarId == STORED_LOCALLY_ONLY) {
             mEventTypeId
         } else {
-            calDAVHelper.getCalDAVCalendars(this).firstOrNull { it.id == mEventCalendarId }?.apply {
+            calDAVHelper.getCalDAVCalendars("", true).firstOrNull { it.id == mEventCalendarId }?.apply {
                 if (!canWrite()) {
                     runOnUiThread {
                         toast(R.string.insufficient_permissions)
@@ -794,7 +800,7 @@ class EventActivity : SimpleActivity() {
 
     private fun storeEvent(wasRepeatable: Boolean) {
         if (mEvent.id == null || mEvent.id == null) {
-            eventsHelper.insertEvent(this, mEvent, true) {
+            eventsHelper.insertEvent(mEvent, true, true) {
                 if (DateTime.now().isAfter(mEventStartDateTime.millis)) {
                     if (mEvent.repeatInterval == 0 && mEvent.getReminders().isNotEmpty()) {
                         notifyEvent(mEvent)
@@ -809,7 +815,7 @@ class EventActivity : SimpleActivity() {
                     showEditRepeatingEventDialog()
                 }
             } else {
-                eventsHelper.updateEvent(this, mEvent, true) {
+                eventsHelper.updateEvent(mEvent, true, true) {
                     finish()
                 }
             }
@@ -820,7 +826,7 @@ class EventActivity : SimpleActivity() {
         EditRepeatingEventDialog(this) {
             if (it) {
                 Thread {
-                    eventsHelper.updateEvent(this, mEvent, true) {
+                    eventsHelper.updateEvent(mEvent, true, true) {
                         finish()
                     }
                 }.start()
@@ -835,7 +841,7 @@ class EventActivity : SimpleActivity() {
                         repeatLimit = 0
                     }
 
-                    eventsHelper.insertEvent(this, mEvent, true) {
+                    eventsHelper.insertEvent(mEvent, true, true) {
                         finish()
                     }
                 }.start()

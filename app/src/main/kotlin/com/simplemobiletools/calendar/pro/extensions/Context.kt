@@ -9,7 +9,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
-import android.database.ContentObserver
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Bundle
@@ -23,7 +22,6 @@ import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
 import com.simplemobiletools.calendar.pro.R
 import com.simplemobiletools.calendar.pro.activities.EventActivity
-import com.simplemobiletools.calendar.pro.activities.SimpleActivity
 import com.simplemobiletools.calendar.pro.activities.SnoozeReminderActivity
 import com.simplemobiletools.calendar.pro.databases.EventsDatabase
 import com.simplemobiletools.calendar.pro.helpers.*
@@ -77,13 +75,15 @@ fun Context.updateListWidget() {
 fun Context.scheduleAllEvents() {
     val events = eventsDB.getEventsAtReboot(getNowSeconds())
     events.forEach {
-        scheduleNextEventReminder(it)
+        scheduleNextEventReminder(it, false)
     }
 }
 
-fun Context.scheduleNextEventReminder(event: Event, activity: SimpleActivity? = null) {
+fun Context.scheduleNextEventReminder(event: Event, showToasts: Boolean) {
     if (event.getReminders().isEmpty()) {
-        activity?.toast(R.string.saving)
+        if (showToasts) {
+            toast(R.string.saving)
+        }
         return
     }
 
@@ -94,28 +94,32 @@ fun Context.scheduleNextEventReminder(event: Event, activity: SimpleActivity? = 
             for (curEvent in it) {
                 for (curReminder in reminderSeconds) {
                     if (curEvent.getEventStartTS() - curReminder > now) {
-                        scheduleEventIn((curEvent.getEventStartTS() - curReminder) * 1000L, curEvent, activity)
+                        scheduleEventIn((curEvent.getEventStartTS() - curReminder) * 1000L, curEvent, showToasts)
                         return@getEvents
                     }
                 }
             }
         }
 
-        activity?.toast(R.string.saving)
+        if (showToasts) {
+            toast(R.string.saving)
+        }
     }
 }
 
-fun Context.scheduleEventIn(notifTS: Long, event: Event, activity: SimpleActivity? = null) {
+fun Context.scheduleEventIn(notifTS: Long, event: Event, showToasts: Boolean) {
     if (notifTS < System.currentTimeMillis()) {
-        activity?.toast(R.string.saving)
+        if (showToasts) {
+            toast(R.string.saving)
+        }
         return
     }
 
     val newNotifTS = notifTS + 1000
-    if (activity != null) {
+    if (showToasts) {
         val secondsTillNotification = (newNotifTS - System.currentTimeMillis()) / 1000
         val msg = String.format(getString(R.string.reminder_triggers_in), formatSecondsToTimeString(secondsTillNotification.toInt()))
-        activity.toast(msg)
+        toast(msg)
     }
 
     val pendingIntent = getNotificationIntent(applicationContext, event)
@@ -239,6 +243,7 @@ fun Context.getNotification(pendingIntent: PendingIntent, event: Event, content:
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setDefaults(Notification.DEFAULT_LIGHTS)
+            .setCategory(Notification.CATEGORY_EVENT)
             .setAutoCancel(true)
             .setSound(Uri.parse(soundUri), config.reminderAudioStream)
             .setChannelId(channelId)
@@ -282,7 +287,7 @@ private fun getSnoozePendingIntent(context: Context, event: Event): PendingInten
 
 fun Context.rescheduleReminder(event: Event?, minutes: Int) {
     if (event != null) {
-        applicationContext.scheduleEventIn(System.currentTimeMillis() + minutes * 60000, event)
+        applicationContext.scheduleEventIn(System.currentTimeMillis() + minutes * 60000, event, false)
         cancelNotification(event.id!!)
     }
 }
@@ -303,12 +308,12 @@ fun Context.getNewEventTimestampFromCode(dayCode: String): Long {
     return newDateTime.withDate(dateTime.year, dateTime.monthOfYear, dateTime.dayOfMonth).seconds()
 }
 
-fun Context.getSyncedCalDAVCalendars() = calDAVHelper.getCalDAVCalendars(null, config.caldavSyncedCalendarIDs)
+fun Context.getSyncedCalDAVCalendars() = calDAVHelper.getCalDAVCalendars(config.caldavSyncedCalendarIDs, false)
 
 fun Context.recheckCalDAVCalendars(callback: () -> Unit) {
     if (config.caldavSync) {
         Thread {
-            calDAVHelper.refreshCalendars(null, callback)
+            calDAVHelper.refreshCalendars(false, callback)
             updateWidgets()
         }.start()
     }
@@ -327,32 +332,6 @@ fun Context.scheduleCalDAVSync(activate: Boolean) {
         }
     } else {
         alarm.cancel(pendingIntent)
-    }
-}
-
-fun Context.syncCalDAVCalendars(activity: SimpleActivity?, calDAVSyncObserver: ContentObserver) {
-    Thread {
-        val uri = CalendarContract.Calendars.CONTENT_URI
-        contentResolver.unregisterContentObserver(calDAVSyncObserver)
-        contentResolver.registerContentObserver(uri, false, calDAVSyncObserver)
-        refreshCalDAVCalendars(activity, config.caldavSyncedCalendarIDs)
-    }.start()
-}
-
-fun Context.refreshCalDAVCalendars(activity: SimpleActivity?, ids: String) {
-    val uri = CalendarContract.Calendars.CONTENT_URI
-    val accounts = HashSet<Account>()
-    val calendars = calDAVHelper.getCalDAVCalendars(activity, ids)
-    calendars.forEach {
-        accounts.add(Account(it.accountName, it.accountType))
-    }
-
-    Bundle().apply {
-        putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
-        putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
-        accounts.forEach {
-            ContentResolver.requestSync(it, uri.authority, this)
-        }
     }
 }
 
@@ -450,6 +429,23 @@ fun Context.handleEventDeleting(eventIds: List<Long>, timestamps: List<Long>, ac
         }
         DELETE_ALL_OCCURRENCES -> {
             eventsHelper.deleteEvents(eventIds.toMutableList(), true)
+        }
+    }
+}
+
+fun Context.refreshCalDAVCalendars(ids: String, showToasts: Boolean) {
+    val uri = CalendarContract.Calendars.CONTENT_URI
+    val accounts = HashSet<Account>()
+    val calendars = calDAVHelper.getCalDAVCalendars(ids, showToasts)
+    calendars.forEach {
+        accounts.add(Account(it.accountName, it.accountType))
+    }
+
+    Bundle().apply {
+        putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+        putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+        accounts.forEach {
+            ContentResolver.requestSync(it, uri.authority, this)
         }
     }
 }

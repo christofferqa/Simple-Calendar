@@ -1,6 +1,15 @@
 Changelog
 ==========
 
+Version 6.1.0 *(2018-12-05)*
+----------------------------
+
+ * Many bugfixed related to CalDAV sync and event importing via .ics files
+ * Fixed a couple weekly view related glitches
+ * Open specific event details on clicking it from Event list widget
+ * Fix a glitch related to events repeating by X weeks for a long time
+ * Many other smaller fixes and performance/stability improvements
+
 Version 6.0.1 *(2018-11-18)*
 ----------------------------
 
@@ -13,11 +22,15 @@ Version 6.0.0 *(2018-11-16)*
  * Fully rewrote the database storing events
  * Fixed some issues related to importing events from .ics files and CalDAV sync
 
+Version 5.1.3 *(2018-11-29)*
+----------------------------
+
+ * This version of the app is no longer maintained, please upgrade to the Pro version. You can find the Upgrade button at the top of the app Settings.
+
 Version 5.1.2 *(2018-11-09)*
 ----------------------------
 
  * Couple smaller UX improvements
- * This version of the app is no longer maintained. Please upgrade to the Pro version. It is free till Nov 24 2018. You can find the Upgrade button at the top of the app Settings.
 
 Version 5.1.1 *(2018-10-25)*
 ----------------------------
