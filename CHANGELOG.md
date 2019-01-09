@@ -1,6 +1,24 @@
 Changelog
 ==========
 
+Version 6.2.1 *(2019-01-08)*
+----------------------------
+
+ * Fixed a CalDAV sync related glitches
+ * Fixed a glitch at showing notifications below Android Oreo
+
+Version 6.2.0 *(2019-01-07)*
+----------------------------
+
+ * Fixed a few CalDAV sync related glitches
+ * Properly handle reminder vibrations
+
+Version 6.1.2 *(2018-12-25)*
+----------------------------
+
+ * Fixed "Duplicate Event" not working
+ * Fixed a glitch with weekly view sometimes being blank
+
 Version 6.1.1 *(2018-12-19)*
 ----------------------------
 
